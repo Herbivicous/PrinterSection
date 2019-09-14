@@ -1,5 +1,7 @@
 """ liste des elements printables """
 
+from functools import lru_cache
+
 # pylint: disable=C0330
 FOREGROUND_COLORS = {
 	'black': '30',
@@ -31,34 +33,48 @@ def between(lower_bound, value, upper_bound):
 	""" retourne le max/min de value entre lower_bound et upper_bound """
 	return max(lower_bound, min(value, upper_bound))
 
+def check_previous(convert_func=None):
+	def _check_previous(func):
+		def wrapper(self, n_col_max):
+			raw_val = getattr(self.obj, self.var_name)
+			val = convert_func(raw_val) if convert_func else raw_val
+			if self.prev != val:
+				self.prev_str = func(self, val, n_col_max)
+				return self.prev_str
+			else:
+				return  ['\033[{}C'.format(n_col_max)]
+		return wrapper
+	return _check_previous
+
 class PrinterElement:
 	""" class abstraite pour tous les element printable """
-	def __init__(self, obj, style, name=None, display_name=None):
+	def __init__(self, obj, param, style, name, display_name=None):
 		self.obj = obj
 		self.var_name = name
+		self.param = param
 		self.name = display_name if display_name is not None else name
 		self.style = style
 
-	def _format(self, string):
-		styled_string = string
+	@lru_cache(maxsize=256)
+	def _format(self, string, value, n_col):
 		formatting_values = []
-		if 'color' in self.style:
-			formatting_values.append(FOREGROUND_COLORS[self.style['color']])
-		if 'background' in self.style:
-			formatting_values.append(BACKGROUND_COLORS[self.style['background']])
-		if 'letters' in self.style:
-			if self.style['letters'] == 'lower':
-				styled_string = styled_string.lower()
-			if self.style['letters'] == 'upper':
-				styled_string = styled_string.upper()
-			if self.style['letters'] == 'capital':
-				styled_string = styled_string.capitalize()
-		if 'underline' in self.style and self.style['underline']:
+		style = self.style
+		if 'color' in style:
+			formatting_values.append(FOREGROUND_COLORS[style['color']])
+		# if 'background' in style:
+		# 	formatting_values.append(BACKGROUND_COLORS[style['background']])
+		if 'letters' in style:
+			value = style['letters'](value)
+		if 'underline' in style:
 			formatting_values.append('4')
-		if 'bold' in self.style and self.style['bold']:
+		if 'light' in style:
 			formatting_values.append('1')
 
-		return ''.join(['\033[', ';'.join(formatting_values), 'm', styled_string, '\033[0m'])
+		styled_string = ''.join(['\033[', ';'.join(formatting_values), 'm', '{}', '\033[0m'])
+		base_string = string.format(value)
+		unpadded_string = string.format(styled_string.format(value))
+		padded_string = '{:{pos}{size}}'.format(base_string, pos=style['pos'], size=n_col)
+		return padded_string.replace(base_string, unpadded_string)
 
 	def to_string(self, n_col_max):
 		""" retourne la string de l'element """
@@ -67,38 +83,34 @@ class PrinterElement:
 class PrinterTitle(PrinterElement):
 	""" le titre d'une section """
 	def to_string(self, n_col_max):
-		attr_val = getattr(self.obj, self.var_name)
-		raw_string = '{:^{taille}}'.format(attr_val, taille=n_col_max)
-		yield self._format(raw_string), n_col_max
+		val = str(getattr(self.obj, self.var_name))
+		yield self._format('{}', val, n_col_max)
 
 class PrinterBool(PrinterElement):
 	""" un booleen, represente par une case a cocher """
 	def to_string(self, n_col_max):
-		if bool(getattr(self.obj, self.var_name)):
-			res = '[■]'
-		else:
-			res = '[ ]'
+		res = '■' if bool(getattr(self.obj, self.var_name)) else ' '
+		trunc_name = self.name
 		if len(self.name) + 3 > n_col_max:
-			yield self._format(self.name[:n_col_max - 5] + '..' + res), n_col_max
-		else:
-			yield self._format(self.name + res), len(self.name) + 3
+			trunc_name = '{}..'.format(self.name[:n_col_max - 5])	
+		yield self._format(trunc_name + '[{}]', res, n_col_max)
 
-class PrinterInt(PrinterElement):
-	""" un entier """
+class PrinterNumeric(PrinterElement):
+	""" une unite, similaire a int mais affiche param a la fin """
 	def to_string(self, n_col_max):
 		name = self.name
 		val = str(getattr(self.obj, self.var_name))
-		self_len = len(name) + len(val) + 1
+		self_len = len(name) + len(val) + 1 + len(self.param)
 		equal = '{:^{size}}'.format('=', size=between(1, n_col_max - self_len + 1, 3))
-		res = '{}{}{}'.format(name, equal, val)
+		res = '{}{}'.format(name, equal)
 		if self_len > n_col_max:
-			res = '{}..'.format(res[:n_col_max - 2])
-		yield self._format(res), self_len + len(equal) - 1
+			val = '{}..'.format(val[:n_col_max - 4 - len(self.param)])
+		yield self._format(res + '{}', val + self.param, n_col_max)
 
 class PrinterStr(PrinterElement):
 	""" une string """
 	def to_string(self, n_col_max):
-		string = getattr(self.obj, self.var_name)
+		string = str(getattr(self.obj, self.var_name))
 		string_len = len(string)
 		name_len = len(self.name)
 		format_f = self._format
@@ -114,7 +126,7 @@ class PrinterStr(PrinterElement):
 					i += n_col_max - 1
 				yield format_f(' {}"'.format(string[i:string_len])), 2 + string_len - i
 		else:
-			yield format_f('-{}:"{}"'.format(self.name, string)), name_len + string_len + 4
+			yield format_f('-{}:"{}"'.format(self.name, '{}'), string, n_col_max)
 
 	def __len__(self):
 		value = getattr(self.obj, self.var_name)
@@ -122,35 +134,58 @@ class PrinterStr(PrinterElement):
 
 class PrinterSep(PrinterElement):
 	""" une ligne de separation """
-	def __init__(self, obj, style, char):
-		super().__init__(obj, style)
-		self.char = char
-
 	def to_string(self, n_col_max):
-		yield self._format(n_col_max*self.char), n_col_max
+		yield n_col_max*self.param
 
 class PrinterBar(PrinterElement):
+	""" une bar de progression (val doit etre entre 0 et 1) """
 	def to_string(self, n_col_max):
 		val = between(0, getattr(self.obj, self.var_name), 1)
 		name = self.name
 		total = (n_col_max - len(name) - 3)
 		progress = round(val*total)
 		left = total - progress
-		string_tab = [name, ':[', progress*'■', left*' ', ']']
-		yield self._format(''.join(string_tab)), len(name) + 3 + total
-		
+		string = '{}{}'.format(name, ':[{}]')
+		val = '{}{}'.format(progress*'■', left*' ')
+		yield self._format(string, val, n_col_max)
+
 class PrinterRatio(PrinterElement):
 	def to_string(self, n_col_max):
 		name = self.name
 		val, val_max = getattr(self.obj, self.var_name)
 		str_length = 2 + len(name) + len(str(val)) + len(str(val_max))
-		if str_length > n_col_max:
-			depassement = str_length - n_col_max
-			yield self._format('{:.{taille}}..:{}/{}'.format(name, val, val_max, taille=len(name)-depassement-2)), n_col_max
+		if name:
+			if str_length > n_col_max:
+				depassement = str_length - n_col_max
+				yield self._format('{:.{taille}}..:{}/{}'.format(name, '{}', val_max, taille=len(name)-depassement-2), val, n_col_max)
+			else:
+				yield self._format('{}:{}/{}'.format(name, '{}', val_max), val, n_col_max)
 		else:
-			yield self._format('{}:{}/{}'.format(name, val, val_max)), str_length
+			yield self._format('{}/{}'.format('{}', val_max), val, n_col_max)
 
 class PrinterStatus(PrinterElement):
 	def __init__(self, obj, style, name, display_name, settings):
 		super(PrinterStatus, self).__init__(obj, style, name, display_name)
 		self.settings = settings
+
+class PrinterGraphe(PrinterElement):
+	def to_string(self, n_col_max):
+		h = int(self.param)
+		values = getattr(self.obj, self.var_name)
+		strings = [[] for i in range(h)]
+		prev = 0
+		for val in values[-n_col_max//2:]:
+			for ligne in range(h):
+				if val == ligne:
+					if True:
+						strings[ligne].append('.')
+					elif prev == val:
+						strings[ligne].append('-')
+					elif prev > val:
+						strings[ligne].append('┘')
+					else:
+						strings[ligne].append('┐')
+				else:
+					strings[ligne].append(' ')
+			prev = val
+		return map(lambda l: self._format('{}', ''.join(l), n_col_max), strings)

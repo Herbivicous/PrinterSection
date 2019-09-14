@@ -23,34 +23,35 @@ class PrinterSection:
 		""" yield une nouvelle ligne a afficher, affiche des ' ' si tous
 		les elements ont ete affiches """
 		for elem in self.elements.values():
-			for str_elem, len_elem in elem.to_string(n_col_max):
-				yield str_elem, len_elem
+			for str_elem in elem.to_string(n_col_max):
+				yield str_elem
 		while True:
-			yield n_col_max*' ', n_col_max
+			yield n_col_max*' '
 
-	def __factory(self, code, attr_name, style, display_name):
+	def __factory(self, code, attr_name, param, style, display_name):
 		constructors = {
 			't': p_elem.PrinterTitle,
 			's': p_elem.PrinterStr,
-			'i': p_elem.PrinterInt,
+			'n': p_elem.PrinterNumeric,
 			'b': p_elem.PrinterBool,
 			'p': p_elem.PrinterBar,
-			'r': p_elem.PrinterRatio
+			'r': p_elem.PrinterRatio,
+			'g': p_elem.PrinterGraphe,
 		}
-		return constructors[code](self.obj, style, attr_name, display_name)
+		return constructors[code](self.obj, param, style, attr_name, display_name)
 
-	def add_arg(self, code, attr_name, style, display_name=None):
+	def add_arg(self, code, attr_name, param, style, display_name=None):
 		""" ajoute un element a la section, de type 'code' """
-		new_printer_elem = self.__factory(code, attr_name, style, display_name)
+		new_printer_elem = self.__factory(code, attr_name, param, style, display_name)
 		self.elements[attr_name] = new_printer_elem
 
 	def add_sep(self, char):
 		""" ajoute une separation horizontale constituee de 'char' """
-		self.elements[random_id()] = p_elem.PrinterSep(self.obj, {}, char)
+		self.elements[random_id()] = p_elem.PrinterSep(self.obj, char, {}, None)
 
 	def change_style(self, var_name, style):
 		""" change le style de var_name en style """
-		new_style = parse_style(style, 0)
+		new_style = parse_style(style, 0)[1]
 		self.elements[var_name].style = new_style
 
 	def get_printable(self, attr_name):
@@ -77,6 +78,7 @@ class Printer:
 	def __init__(self, **kwargs):
 		self.sections = []
 		self.structure = None
+		self.size = get_screen_size()
 		self._set_args(kwargs)
 
 	def _set_args(self, kwargs):
@@ -106,8 +108,9 @@ class Printer:
 			self.sections.append(PrinterSection(None))
 		self.structure = (columns[n_section], int(len(self.sections)/columns[n_section]))
 
-	def add_section(self, format_string, obj):
+	def add_section(self, format_obj, obj):
 		""" ajoute une nouvelle section, en parsant format string """
+		format_string = ''.join(format_obj) if isinstance(format_obj, list) else format_obj
 		new_section = PrinterSection(obj)
 		parse_section(format_string, new_section, 0)
 		self.sections.append(new_section)
@@ -123,17 +126,17 @@ class Printer:
 			stdout.write("\033[0;0H")
 		if self.refresh:
 			self.find_structure()
-		width, height = get_screen_size()
+		width, height = self.size
 		n_sec_per_line = self.structure[0]
 		n_sec_per_col = self.structure[1]
 		n_l = height // n_sec_per_col - 1
 		n_c = width // n_sec_per_line - 1
+		sections_line_string = []
 		for i_sec_line, sec_line in enumerate(range(n_sec_per_col)):
-			top_border_string = (n_c*'═' + ('╬' if i_sec_line else '╦'))
-			leftover_spaces = (width - n_sec_per_line*(n_c + 1)) * ' '
-			stdout.write(n_sec_per_line*top_border_string + leftover_spaces)
+			sections_line_string.append(Printer._get_top_border(n_c, i_sec_line, n_sec_per_line))
 			line_iters = self._build_line_iters(n_sec_per_line, sec_line, n_c)
-			Printer._print_all_section_lines(line_iters, n_l, n_c, width)
+			sections_line_string.append(Printer._get_all_section_lines(line_iters, n_l, n_c, width))
+		stdout.write('\n'.join(sections_line_string))
 		stdout.flush()
 
 	def _build_line_iters(self, n_sec_per_line, sec_line, n_col_max):
@@ -145,14 +148,23 @@ class Printer:
 		return line_iterators
 
 	@staticmethod
-	def _print_all_section_lines(line_iters, n_l, n_c, width):
+	def _get_all_section_lines(line_iters, n_l, n_c, width):
 		""" ecrit dans stdout toutes les lignes de txt venant des lineiters """
+		lines = []
 		for i, col_line in enumerate(zip(*line_iters)):
-			for str_line, len_line in col_line:
-				stdout.write('{}{}║'.format(str_line, ' '*(n_c - len_line)))
-			stdout.write((width - len(col_line)*(n_c + 1))*' ')
+			line = ['{}║'.format(str_line) for str_line in col_line]
+			lines.append(''.join(line))
 			if i >= n_l - 1:
 				break
+		return '\n'.join(lines)
+
+	@staticmethod
+	def _get_top_border(n_c, i_sec_line, n_sec_per_line):
+		cross_char = '╬' if i_sec_line else '╦'
+		last_cross_char = '╣' if i_sec_line else '╗'
+		top_border = '{:═>{size}}'.format(cross_char, size=n_c+1)
+		last_top_border = '{:═>{size}}'.format(last_cross_char, size=n_c+1)
+		return '{}{}'.format((n_sec_per_line-1)*top_border, last_top_border)
 
 	@staticmethod
 	def restore():
