@@ -7,7 +7,6 @@ from random import random
 import shutil
 from threading import Thread
 from time import sleep
-from math import sqrt
 
 import printerlements as p_elem
 from printerparser import parse_section, parse_style
@@ -55,6 +54,7 @@ class PrinterSection:
 		self.elements[var_name].style = new_style
 
 	def get_printable(self, attr_name):
+		""" return l'objet printable de nom attr_name """
 		if attr_name not in self.elements:
 			raise AttributeError('{} doesn\'t exists'.format(attr_name))
 		return self.elements[attr_name]
@@ -102,8 +102,9 @@ class Printer:
 	def find_structure(self):
 		""" trouve la disposition de section se rapprochant le plus de 3/2 """
 		n_section = len(self.sections)
-		columns = [0, 1, 2, 3, 2, 3, 3, 4, 4, 3, 5, 4, 4, 5, 5, 5, 4, 6, 6, 5, 5, 7, 6]
-		add = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 2, 1, 0, 0, 1, 0, 1, 0, 0, 2]
+		#          0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4
+		columns = [0, 1, 2, 3, 2, 3, 3, 4, 4, 3, 5, 4, 4, 5, 5, 5, 4, 6, 6, 5, 5, 7, 6, 6, 6, 7, 7, 7, 7, 6, 6, 8, 8]
+		add =     [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 2, 1, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 3, 2, 1, 0, 1, 0, 1, 0]
 		for _ in range(add[n_section]):
 			self.sections.append(PrinterSection(None))
 		self.structure = (columns[n_section], int(len(self.sections)/columns[n_section]))

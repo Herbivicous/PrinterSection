@@ -53,9 +53,10 @@ class PrinterElement:
 		self.var_name = name
 		self.param = param
 		self.name = display_name if display_name is not None else name
+		self.style_changed = True
 		self.style = style
 
-	@lru_cache(maxsize=256)
+	#@lru_cache(maxsize=256)
 	def _format(self, string, value, n_col):
 		formatting_values = []
 		style = self.style
@@ -63,7 +64,7 @@ class PrinterElement:
 			formatting_values.append(FOREGROUND_COLORS[style['color']])
 		# if 'background' in style:
 		# 	formatting_values.append(BACKGROUND_COLORS[style['background']])
-		if 'letters' in style:
+		if value and 'letters' in style:
 			value = style['letters'](value)
 		if 'underline' in style:
 			formatting_values.append('4')
@@ -73,12 +74,17 @@ class PrinterElement:
 		styled_string = ''.join(['\033[', ';'.join(formatting_values), 'm', '{}', '\033[0m'])
 		base_string = string.format(value)
 		unpadded_string = string.format(styled_string.format(value))
-		padded_string = '{:{pos}{size}}'.format(base_string, pos=style['pos'], size=n_col)
+		padded_string = '{:{pos}{size}.{size}}'.format(base_string, pos=style['pos'], size=n_col)
 		return padded_string.replace(base_string, unpadded_string)
 
 	def to_string(self, n_col_max):
 		""" retourne la string de l'element """
-		raise NotImplementedError(":'(")
+		raise NotImplementedError("needs to be overridden")
+
+	def change_style(self, new_style):
+		""" change le style de l'element """
+		self.style_changed = True
+		self.style = new_style
 
 class PrinterTitle(PrinterElement):
 	""" le titre d'une section """
@@ -92,7 +98,7 @@ class PrinterBool(PrinterElement):
 		res = '■' if bool(getattr(self.obj, self.var_name)) else ' '
 		trunc_name = self.name
 		if len(self.name) + 3 > n_col_max:
-			trunc_name = '{}..'.format(self.name[:n_col_max - 5])	
+			trunc_name = '{}..'.format(self.name[:n_col_max - 5])
 		yield self._format(trunc_name + '[{}]', res, n_col_max)
 
 class PrinterNumeric(PrinterElement):
@@ -113,20 +119,19 @@ class PrinterStr(PrinterElement):
 		string = str(getattr(self.obj, self.var_name))
 		string_len = len(string)
 		name_len = len(self.name)
-		format_f = self._format
 		if string_len + name_len + 4 > n_col_max:
-			yield format_f('-{}:'.format(self.name)), name_len + 2
+			yield self._format('-{}:'.format(self.name), None, n_col_max)
 			if string_len + 2 <= n_col_max:
-				yield format_f('"{}"'.format(string)), string_len + 2
+				yield self._format('\'{}\'', string, string_len + 2)
 			else:
-				yield format_f('"{}'.format(string[:n_col_max - 2])), n_col_max - 1
+				yield self._format('\'{}', string[:n_col_max - 2], n_col_max)
 				i = n_col_max-2
 				while i + n_col_max - 2 < string_len:
-					yield format_f(' {} '.format(string[i:i+n_col_max-2])), n_col_max
+					yield self._format(' {} ', string[i:i+n_col_max-2], n_col_max)
 					i += n_col_max - 1
-				yield format_f(' {}"'.format(string[i:string_len])), 2 + string_len - i
+				yield self._format(' {}\'', string[i:string_len], n_col_max)
 		else:
-			yield format_f('-{}:"{}"'.format(self.name, '{}'), string, n_col_max)
+			yield self._format('-{}:\'{}\''.format(self.name, '{}'), string, n_col_max)
 
 	def __len__(self):
 		value = getattr(self.obj, self.var_name)
@@ -156,8 +161,9 @@ class PrinterRatio(PrinterElement):
 		str_length = 2 + len(name) + len(str(val)) + len(str(val_max))
 		if name:
 			if str_length > n_col_max:
-				depassement = str_length - n_col_max
-				yield self._format('{:.{taille}}..:{}/{}'.format(name, '{}', val_max, taille=len(name)-depassement-2), val, n_col_max)
+				taille = len(name) - str_length - n_col_max - 2
+				base = '{:.{taille}}..:{}/{}'.format(name, '{}', val_max, taille=taille)
+				yield self._format(base, val, n_col_max)
 			else:
 				yield self._format('{}:{}/{}'.format(name, '{}', val_max), val, n_col_max)
 		else:
@@ -176,16 +182,27 @@ class PrinterGraphe(PrinterElement):
 		prev = 0
 		for val in values[-n_col_max//2:]:
 			for ligne in range(h):
-				if val == ligne:
-					if True:
-						strings[ligne].append('.')
-					elif prev == val:
-						strings[ligne].append('-')
-					elif prev > val:
-						strings[ligne].append('┘')
-					else:
-						strings[ligne].append('┐')
-				else:
-					strings[ligne].append(' ')
+				if ligne == prev:
+					if ligne == val:
+						strings[ligne].append('──')
+					elif ligne > val:
+						strings[ligne].append('┐ ')
+					elif ligne < val:
+						strings[ligne].append('┘ ')
+				elif ligne > prev:
+					if ligne == val:
+						strings[ligne].append('┌─')
+					elif ligne > val:
+						strings[ligne].append('  ')
+					elif ligne < val:
+						strings[ligne].append('│ ')
+				elif ligne < prev:
+					if ligne == val:
+						strings[ligne].append('└─')
+					elif ligne > val:
+						strings[ligne].append('│ ')
+					elif ligne < val:
+						strings[ligne].append('  ')
 			prev = val
-		return map(lambda l: self._format('{}', ''.join(l), n_col_max), strings)
+			print()
+		return map(lambda l: self._format('{}', ''.join(l), n_col_max), reversed(strings))
