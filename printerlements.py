@@ -215,4 +215,6 @@ class PrinterGraphe(PrinterElement):
 def get_value(obj, attr_name):
 	if isinstance(obj, dict):
 		return obj[attr_name]
+	if isinstance(obj, list):
+		return obj[int(attr_name)]
 	return getattr(obj, attr_name)
