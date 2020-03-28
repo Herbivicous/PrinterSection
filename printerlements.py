@@ -94,13 +94,13 @@ class PrinterConstant(PrinterElement):
 class PrinterTitle(PrinterElement):
 	""" le titre d'une section """
 	def to_string(self, n_col_max):
-		val = str(getattr(self.obj, self.var_name))
+		val = str(get_value(self.obj, self.var_name))
 		yield self._format('{}', val, n_col_max)
 
 class PrinterBool(PrinterElement):
 	""" un booleen, represente par une case a cocher """
 	def to_string(self, n_col_max):
-		res = '■' if bool(getattr(self.obj, self.var_name)) else ' '
+		res = '■' if bool(get_value(self.obj, self.var_name)) else ' '
 		trunc_name = self.name
 		if len(self.name) + 3 > n_col_max:
 			trunc_name = '{}..'.format(self.name[:n_col_max - 5])
@@ -110,7 +110,7 @@ class PrinterNumeric(PrinterElement):
 	""" une unite, similaire a int mais affiche param a la fin """
 	def to_string(self, n_col_max):
 		name = self.name
-		val = str(getattr(self.obj, self.var_name))
+		val = str(get_value(self.obj, self.var_name))
 		self_len = len(name) + len(val) + 1 + len(self.param)
 		equal = '{:^{size}}'.format('=', size=between(1, n_col_max - self_len + 1, 3))
 		res = '{}{}'.format(name, equal)
@@ -121,7 +121,7 @@ class PrinterNumeric(PrinterElement):
 class PrinterStr(PrinterElement):
 	""" une string """
 	def to_string(self, n_col_max):
-		string = str(getattr(self.obj, self.var_name))
+		string = str(get_value(self.obj, self.var_name))
 		string_len = len(string)
 		name_len = len(self.name)
 		if string_len + name_len + 4 > n_col_max:
@@ -139,7 +139,7 @@ class PrinterStr(PrinterElement):
 			yield self._format('-{}:\'{}\''.format(self.name, '{}'), string, n_col_max)
 
 	def __len__(self):
-		value = getattr(self.obj, self.var_name)
+		value = get_value(self.obj, self.var_name)
 		return len(self.name) + len(str(value)) + 1
 
 class PrinterSep(PrinterElement):
@@ -150,7 +150,7 @@ class PrinterSep(PrinterElement):
 class PrinterBar(PrinterElement):
 	""" une bar de progression (val doit etre entre 0 et 1) """
 	def to_string(self, n_col_max):
-		val = between(0, getattr(self.obj, self.var_name), 1)
+		val = between(0, get_value(self.obj, self.var_name), 1)
 		name = self.name
 		total = (n_col_max - len(name) - 3)
 		progress = round(val*total)
@@ -162,7 +162,7 @@ class PrinterBar(PrinterElement):
 class PrinterRatio(PrinterElement):
 	def to_string(self, n_col_max):
 		name = self.name
-		val, val_max = getattr(self.obj, self.var_name)
+		val, val_max = get_value(self.obj, self.var_name)
 		str_length = 2 + len(name) + len(str(val)) + len(str(val_max))
 		if name:
 			if str_length > n_col_max:
@@ -182,7 +182,7 @@ class PrinterStatus(PrinterElement):
 class PrinterGraphe(PrinterElement):
 	def to_string(self, n_col_max):
 		h = int(self.param)
-		values = getattr(self.obj, self.var_name)
+		values = get_value(self.obj, self.var_name)
 		strings = [[] for i in range(h)]
 		prev = 0
 		for val in values[-n_col_max//2:]:
@@ -211,3 +211,8 @@ class PrinterGraphe(PrinterElement):
 			prev = val
 			print()
 		return map(lambda l: self._format('{}', ''.join(l), n_col_max), reversed(strings))
+
+def get_value(obj, attr_name):
+	if isinstance(obj, dict):
+		return obj[attr_name]
+	return getattr(obj, attr_name)
