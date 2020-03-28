@@ -86,6 +86,11 @@ class PrinterElement:
 		self.style_changed = True
 		self.style = new_style
 
+class PrinterConstant(PrinterElement):
+	""" une string constante """
+	def to_string(self, n_col_max):
+		yield self._format('{}', self.var_name, n_col_max)
+
 class PrinterTitle(PrinterElement):
 	""" le titre d'une section """
 	def to_string(self, n_col_max):

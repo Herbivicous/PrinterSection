@@ -29,6 +29,7 @@ class PrinterSection:
 
 	def __factory(self, code, attr_name, param, style, display_name):
 		constructors = {
+		    'c': p_elem.PrinterConstant,
 			't': p_elem.PrinterTitle,
 			's': p_elem.PrinterStr,
 			'n': p_elem.PrinterNumeric,
