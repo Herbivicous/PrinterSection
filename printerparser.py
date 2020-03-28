@@ -97,11 +97,11 @@ def parse_color(string, index):
 def find_letters(color):
 	""" determine si color est uppercase, lowercase ou capitalized """
 	if color.lower() == color:
-		return  lambda string: string.lower()
+		return  lambda string: str(string).lower()
 	if color.upper() == color:
-		return lambda string: string.upper()
+		return lambda string: str(string).upper()
 	if color.capitalize() == color:
-		return lambda string: string.capitalize()
+		return lambda string: str(string).capitalize()
 	raise ValueError('{} isn\'t lower case, nor upper case nor capitalized'.format(color))
 
 def parse_display_name(string, index):

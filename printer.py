@@ -174,10 +174,12 @@ class Printer:
 		stdout.write('\033[?25h')
 		stdout.flush()
 
-def auto_print(printer, sleep_time):
+def auto_print(printer, sleep_time, callback=None):
 	""" print en chaine le printer """
 	def refresh():
 		while True:
+			if callback:
+				callback()
 			printer.print()
 			sleep(sleep_time)
 	thread = Thread(target=refresh, daemon=True)
