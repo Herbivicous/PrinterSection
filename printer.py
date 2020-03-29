@@ -78,6 +78,7 @@ class Printer:
 	""" gestion d'un printer, compose de plusieurs sections """
 	def __init__(self, **kwargs):
 		self.sections = []
+		self.added_section = 0
 		self.structure = None
 		self.size = get_screen_size()
 		self._set_args(kwargs)
@@ -102,11 +103,14 @@ class Printer:
 
 	def find_structure(self):
 		""" trouve la disposition de section se rapprochant le plus de 3/2 """
+		self.sections = self.sections[:-self.added_section]
+		self.added_section = 0
 		n_section = len(self.sections)
 		#          0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4
 		columns = [0, 1, 2, 3, 2, 3, 3, 4, 4, 3, 5, 4, 4, 5, 5, 5, 4, 6, 6, 5, 5, 7, 6, 6, 6, 7, 7, 7, 7, 6, 6, 8, 8]
 		add =     [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 2, 1, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 3, 2, 1, 0, 1, 0, 1, 0]
 		for _ in range(add[n_section]):
+			self.added_section += 1
 			self.sections.append(PrinterSection(None))
 		self.structure = (columns[n_section], int(len(self.sections)/columns[n_section]))
 
@@ -116,6 +120,8 @@ class Printer:
 		new_section = PrinterSection(obj)
 		parse_section(format_string, new_section, 0)
 		self.sections.append(new_section)
+		if self.refresh:
+			self.find_structure()
 		return new_section
 
 	def __getitem__(self, key):
@@ -126,8 +132,6 @@ class Printer:
 		if self.clear:
 			# stdout.write("\033[?25l")
 			stdout.write("\033[0;0H")
-		if self.refresh:
-			self.find_structure()
 		width, height = self.size
 		n_sec_per_line = self.structure[0]
 		n_sec_per_col = self.structure[1]
