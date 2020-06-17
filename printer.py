@@ -9,6 +9,7 @@ from threading import Thread
 from time import sleep
 
 import printerlements as p_elem
+from printerstyle import Style
 from printerparser import parse_section, parse_style
 
 # pylint: disable=C0330
@@ -16,18 +17,18 @@ class PrinterSection:
 	""" Une section de printer """
 	def __init__(self, obj):
 		self.obj = obj
-		self.elements = OrderedDict()
+		self.elements = []
 
 	def get_line(self, n_col_max):
 		""" yield une nouvelle ligne a afficher, affiche des ' ' si tous
 		les elements ont ete affiches """
-		for elem in self.elements.values():
+		for elem in self.elements:
 			for str_elem in elem.to_string(n_col_max):
 				yield str_elem
 		while True:
 			yield n_col_max*' '
 
-	def __factory(self, code, attr_name, param, style, display_name):
+	def __factory(self, code, param, *args):
 		constructors = {
 		    'c': p_elem.PrinterConstant,
 			't': p_elem.PrinterTitle,
@@ -36,33 +37,28 @@ class PrinterSection:
 			'b': p_elem.PrinterBool,
 			'p': p_elem.PrinterBar,
 			'r': p_elem.PrinterRatio,
-			'g': p_elem.PrinterGraphe,
 		}
-		return constructors[code](self.obj, param, style, attr_name, display_name)
+		return constructors[code](self.obj, param, *args)
 
-	def add_arg(self, code, attr_name, param, style, display_name=None):
+	def add_arg(self, code, attr_name, param, display_name, **style):
 		""" ajoute un element a la section, de type 'code' """
-		new_printer_elem = self.__factory(code, attr_name, param, style, display_name)
-		self.elements[attr_name] = new_printer_elem
+		style_obj = Style(**style)
+		new_printer_elem = self.__factory(code, param, style_obj.styled, attr_name, display_name)
+		style_obj.element = new_printer_elem
+		self.elements.append(new_printer_elem)
+		return new_printer_elem
 
 	def add_sep(self, char):
 		""" ajoute une separation horizontale constituee de 'char' """
-		self.elements[random_id()] = p_elem.PrinterSep(self.obj, char, {}, None)
+		better_char = {'=': '═', '-': '─'}.get(char, char)
+		new_printer_elem = p_elem.PrinterSep(self.obj, better_char, Style(), None)
+		self.elements.append(new_printer_elem)
+		return new_printer_elem
 
-	def change_style(self, var_name, style):
-		""" change le style de var_name en style """
+	def change_style(self, idx, style):
+		""" change le style de idx en style """
 		new_style = parse_style(style, 0)[1]
-		self.elements[var_name].style = new_style
-
-	def get_printable(self, attr_name):
-		""" return l'objet printable de nom attr_name """
-		if attr_name not in self.elements:
-			raise AttributeError('{} doesn\'t exists'.format(attr_name))
-		return self.elements[attr_name]
-
-def random_id():
-	""" retourne une id aleatoire """
-	return str(round(10000*random()))
+		self.elements[idx].style = new_style
 
 def get_screen_size():
 	""" return the size of the terminal """
@@ -76,10 +72,10 @@ def get_screen_size():
 
 class Printer:
 	""" gestion d'un printer, compose de plusieurs sections """
-	def __init__(self, **kwargs):
+	def __init__(self, cols, rows, **kwargs):
 		self.sections = []
 		self.added_section = 0
-		self.structure = None
+		self.structure = (cols, rows)
 		self.size = get_screen_size()
 		self._set_args(kwargs)
 
@@ -88,41 +84,30 @@ class Printer:
 		self.refresh = kwargs.get('refresh_structure', True)
 		self.clear = kwargs.get('clear_terminal', True)
 
-	def find_structure_old(self):
-		""" trouve la disposition de section se rapprochant le plus de 3/2 """
-		target = 0.208*len(self.sections) + 1.79
-		ratio_list = []
-		for i in range(1, len(self.sections)+1):
-			if (len(self.sections)/i).is_integer():
-				ratio_list.append((int(len(self.sections)/i), i))
-		best_ratio = min(ratio_list, key=lambda n: abs(n[0] - target))
-		self.structure = best_ratio
-		if best_ratio[0] == 1:
-			self.sections.append(PrinterSection(None))
-			self.find_structure()
+	def add_section(self, obj):
+		new_section = PrinterSection(obj)
+		self.sections.append(new_section)
+		return new_section
 
-	def find_structure(self):
-		""" trouve la disposition de section se rapprochant le plus de 3/2 """
-		self.sections = self.sections[:-self.added_section]
-		self.added_section = 0
-		n_section = len(self.sections)
-		#          0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4
-		columns = [0, 1, 2, 3, 2, 3, 3, 4, 4, 3, 5, 4, 4, 5, 5, 5, 4, 6, 6, 5, 5, 7, 6, 6, 6, 7, 7, 7, 7, 6, 6, 8, 8]
-		add =     [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 2, 1, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 3, 2, 1, 0, 1, 0, 1, 0]
-		for _ in range(add[n_section]):
-			self.added_section += 1
-			self.sections.append(PrinterSection(None))
-		self.structure = (columns[n_section], int(len(self.sections)/columns[n_section]))
-
-	def add_section(self, format_obj, obj):
+	def add_section_old(self, format_obj, obj):
 		""" ajoute une nouvelle section, en parsant format string """
 		format_string = ''.join(format_obj) if isinstance(format_obj, list) else format_obj
 		new_section = PrinterSection(obj)
 		parse_section(format_string, new_section, 0)
+		self.__remove_added_section()
 		self.sections.append(new_section)
-		if self.refresh:
-			self.find_structure()
 		return new_section
+
+	def __remove_added_section(self):
+		""" retire toute les sections ajoutees """
+		while self.added_section > 0:
+			self.sections.pop()
+			self.added_section -= 1
+
+	def __add_empty_section(self):
+		""" ajoute une section vide """
+		self.added_section += 1
+		self.sections.append(PrinterSection(None))
 
 	def __getitem__(self, key):
 		return self.sections[key]
@@ -141,7 +126,7 @@ class Printer:
 		for i_sec_line, sec_line in enumerate(range(n_sec_per_col)):
 			sections_line_string.append(Printer._get_top_border(n_c, i_sec_line, n_sec_per_line))
 			line_iters = self._build_line_iters(n_sec_per_line, sec_line, n_c)
-			sections_line_string.append(Printer._get_all_section_lines(line_iters, n_l, n_c, width))
+			sections_line_string.append(Printer._get_all_section_lines(line_iters, n_l))
 		stdout.write('\n'.join(sections_line_string))
 		stdout.flush()
 
@@ -149,12 +134,16 @@ class Printer:
 		""" retourne une liste d'iterateurs sur les lignes d'une section """
 		line_iterators = []
 		for sec_col in range(n_sec_per_line):
-			section = self.sections[n_sec_per_line * sec_line + sec_col]
-			line_iterators.append(section.get_line(n_col_max))
+			idx = n_sec_per_line * sec_line + sec_col
+			if idx < len(self.sections):
+				section = self.sections[idx]
+				line_iterators.append(section.get_line(n_col_max))
+			else:
+				line_iterators.append([])
 		return line_iterators
 
 	@staticmethod
-	def _get_all_section_lines(line_iters, n_l, n_c, width):
+	def _get_all_section_lines(line_iters, n_l):
 		""" ecrit dans stdout toutes les lignes de txt venant des lineiters """
 		lines = []
 		for i, col_line in enumerate(zip(*line_iters)):

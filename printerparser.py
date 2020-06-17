@@ -36,7 +36,7 @@ def parse_element(string, section, index):
 	index, param = parse_display_param(string, index)
 	index, style = parse_style(string, index)
 	index, display_name = parse_display_name(string, index)
-	section.add_arg(display_type, name, param, style, display_name)
+	section.add_arg(display_type, name, param, display_name, **style)
 	return index
 
 def parse_var_name(string, index):

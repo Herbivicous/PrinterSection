@@ -57,8 +57,6 @@ class City:
 			print(self.url)
 			raise error
 		self.temp = round(data['main']['temp'] - 273.15, 2)
-		style = '{BLUE}' if self.temp < 18 else '{RED}'
-		# self.section.change_style(7, style)
 		d_start = data['sys']['sunrise']
 		d_end = data['sys']['sunset']
 		now = int(time.time())
@@ -73,8 +71,20 @@ class City:
 cities = [City(name) for name in city_names]
 main_printer = Printer(4, 3)
 for city in cities:
-	city.section = main_printer.add_section(template, city)
-
+	section = main_printer.add_section(city)
+	section.add_arg('t', 'name', None, '', pos='^', strf='upper', underline=True, color='blue')
+	section.add_arg('t', 'time', None, '', pos='^', strf='lower', color='cyan')
+	section.add_arg('r', 'ratio', None, 'La ratio', pos='^', color='cyan')
+	section.add_sep('-')
+	section.add_arg('t', 'weather', None, '', pos='^', light=True, color='cyan')
+	section.add_arg('t', 'descr', None, '', pos='^')
+	section.add_sep(' ')
+	section.add_arg('n', 'temp', '°C', 'Temperature', colorf=lambda t: 'red' if t>15 else 'blue')
+	section.add_arg('n', 'humidity', '%', 'Humidity', color='green')
+	section.add_sep(' ')
+	section.add_arg('p', 'day_pr', None, 'Day', color='green')
+	section.add_arg('b', 'nuit', None, 'Night', pos='^', color='red')
+	
 for city in cities:
 	city.update()
 
