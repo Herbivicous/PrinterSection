@@ -13,84 +13,76 @@ from printer import Printer, auto_print
 api_key = '2ad9512119b1c9aca49c6a9c14186dd0'
 api_url = 'https://api.openweathermap.org/data/2.5/weather?q={}&appid={}'
 
-city_names = [
-	'Grenoble',
-	'Paris',
-	'Osaka',
-	'Tokyo',
-	'London',
-	'Detroit',
-	'Seattle',
-	'Nashville',
-	'Sydney',
-	'Calcutta',
-	'Moscow',
-	'Brasilia'
+user_names = [
+	'Jean',
+	'Tonton',
+	'Pipo',
+	'Toto'
 ]
 
-template = [
-	'{name:%t:^BLUE_}',
-	'{time:%t:^cyan}',
-	'{ratio:%r:^cyan:La ratio}',
-	'-',
-	'{weather:%t:^cyan*}',
-	'{descr:%t:^}',
-	' ',
-	'{temp:%n°C::Temperature}',
-	'{humidity:%n%:green:Humidity}',
-	' ',
-	'{day_pr:%p:green:Day}',
-	'{nuit:%b:^red:Night}'
-]
+ME = 'Bastien'
 
-class City:
-	def __init__(self, name):
+def chat_section(main_printer, chatname):
+	if chatname not in user_names:
+		return
+	chat = Chat(ME, chatname)
+	section = main_printer.add_section(chat)
+	section.title('name', align='center', strf='upper', underline=True, color='#123456')
+	section.sep('-')
+	# section.ratio('ratio', 10, 'Test')
+	# section.title('weather', pos='^', light=True, color='cyan')
+	# section.title('descr', pos='^')
+	# section.sep(' ')
+	# section.numeric('temp', 'Temperature', '°C', colorf=lambda t: 'red' if t>15 else 'blue')
+	# section.numeric('humidity', 'Humidity', '%', color='green')
+	# section.sep(' ')
+	# section.progress('day_pr', 'Day', color='green')
+	# section.bool('nuit', 'Night', pos='^', color='red')
+	section.bool('online', 'Online', color='green', align='center')
+	section.bool_input(lambda v: v, 'Mute', color='red', align='center')
+	section.text_input(chat.add_me_msg, 'msg')
+	# section.bool('valide', 'Selection', pos='<', color='green')
+	chat.set_section(section)
+
+class Chat:
+	def __init__(self, me, name):
+		self.section = None
+		self.me = me
 		self.name = name
-		self.url = api_url.format(name, api_key)
-		self.ratio = [5, 10]
+		self.online = bool(randint(0, 1))
 
-	def update(self):
-		# self.temp = randint(10, 1000)
-		try:
-			data = loads(urlopen(self.url).read())
-		except HTTPError as error:
-			print(self.url)
-			raise error
-		self.temp = round(data['main']['temp'] - 273.15, 2)
-		d_start = data['sys']['sunrise']
-		d_end = data['sys']['sunset']
-		now = int(time.time())
-		self.nuit = now < d_start or now > d_end
-		self.weather = '[ {} ]'.format(data['weather'][0]['main'])
-		self.descr = data['weather'][0]['description']
-		day_pr = (now - d_start)/(d_end - d_start)
-		self.day_pr = day_pr if day_pr < 1 else 0
-		self.humidity = data['main']['humidity']
-		self.time = time.strftime('%H:%M', time.localtime(now - 7200 + data['timezone']))
+	def set_section(self, section):
+		self.section = section
 
-cities = [City(name) for name in city_names]
+	def add_me_msg(self, msg):
+		self.__add_msg(self.me, msg, 'green')
+		if self.online:
+			self.add_other_msg(msg[::-1])
+		else:
+			self.__add_msg('Error', '{} is offline'.format(self.name), 'red')
+
+	def add_other_msg(self, msg):
+		self.__add_msg(self.name, msg, 'cyan')
+
+	def __add_msg(self, user, msg, color):
+		if msg:
+			self.section.constant('{}:{}'.format(user, msg), color=color)
+
 main_printer = Printer(4, 3)
-for city in cities:
-	section = main_printer.add_section(city)
-	section.add_arg('t', 'name', None, '', pos='^', strf='upper', underline=True, color='blue')
-	section.add_arg('t', 'time', None, '', pos='^', strf='lower', color='cyan')
-	section.add_arg('r', 'ratio', None, 'La ratio', pos='^', color='cyan')
-	section.add_sep('-')
-	section.add_arg('t', 'weather', None, '', pos='^', light=True, color='cyan')
-	section.add_arg('t', 'descr', None, '', pos='^')
-	section.add_sep(' ')
-	section.add_arg('n', 'temp', '°C', 'Temperature', colorf=lambda t: 'red' if t>15 else 'blue')
-	section.add_arg('n', 'humidity', '%', 'Humidity', color='green')
-	section.add_sep(' ')
-	section.add_arg('p', 'day_pr', None, 'Day', color='green')
-	section.add_arg('b', 'nuit', None, 'Night', pos='^', color='red')
-	
-for city in cities:
-	city.update()
 
-N = 1000
-t0 = time.time()
-for _ in range(N):
-	main_printer.print()
-t1 = time.time()
-print('\nfps = {}'.format(N/(t1 - t0)))
+options = {'a': 'Abruti', 'q': 'Quit', 'p': 'peepee'}
+f_quit = lambda v: v == 'q' and exit(0) or new_chat_section.constant(v, align='center')
+
+new_chat_section = main_printer.add_section(None)
+new_chat_section.options_input(f_quit, options, color='red')
+new_chat_section.text_input(lambda v: chat_section(main_printer, v), 'Open chat with')
+
+# N = 1000
+# t0 = time.time()
+# for _ in range(N):
+# 	main_printer.print()
+# t1 = time.time()
+# print('\nfps = {}'.format(N/(t1 - t0)))
+
+auto_print(main_printer, 0.1)
+main_printer.main_loop()

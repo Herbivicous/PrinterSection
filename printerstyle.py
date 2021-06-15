@@ -1,6 +1,5 @@
+""" gestion di style des elements """
 
-
-# pylint: disable=C0330
 FOREGROUND_COLORS = {
 	'black': '30',
 	'red': '31',
@@ -28,10 +27,10 @@ BACKGROUND_COLORS = {
 }
 
 STR_FUNC = {
-	'lower': lambda string: str(string).lower(),
-	'upper': lambda string: str(string).upper(),
-	'title': lambda string: str(string).title(),
-	'capitalize': lambda string: str(string).capitalize()
+	'lower': str.lower,
+	'upper': str.upper,
+	'title': str.title,
+	'capitalize': str.capitalize
 }
 
 class Style:
@@ -48,12 +47,17 @@ class Style:
 		elif 'color' in self.kwargs:
 			color = self.kwargs['color']
 		if color:
-			formatting_values.append(FOREGROUND_COLORS[color])
+			if color in FOREGROUND_COLORS:
+				formatting_values.append(FOREGROUND_COLORS[color])
+			elif color[0] == '#' and len(color) == 7:
+				formatting_values.append('38')
+				formatting_values.append('2')
+				formatting_values.append(str(int(color[1:3], 16)))
+				formatting_values.append(str(int(color[3:5], 16)))
+				formatting_values.append(str(int(color[5:7], 16)))
 
 	def __get_pos(self):
-		if 'pos' in self.kwargs:
-			return self.kwargs['pos']
-		return '<'
+		return {'left': '<', 'center': '^', 'right': '>'}[self.kwargs.get('align', 'left')]
 
 	def __treat_string(self, value):
 		if 'strf' in self.kwargs:
@@ -61,8 +65,10 @@ class Style:
 			return STR_FUNC[func_code](value)
 		return value
 
-	def styled(self, string, value, n_col):
+	def __call__(self, string, value, n_col):
 		""" applique le style a la valeur et la met dans la string """
+		if self.kwargs.get('hidden'):
+			return n_col*' '
 		formatting_values = []
 		self.__get_color(formatting_values)
 		value = self.__treat_string(value)

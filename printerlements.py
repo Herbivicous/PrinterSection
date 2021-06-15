@@ -8,6 +8,7 @@ class PrinterElement:
 		self.param = param
 		self.name = display_name if display_name is not None else name
 		self.style = style
+		self.style.element = self
 
 	def to_string(self, n_col_max):
 		""" retourne la string de l'element """
@@ -34,7 +35,7 @@ class PrinterSep(PrinterElement):
 class PrinterConstant(PrinterElement):
 	""" une string constante """
 	def to_string(self, n_col_max):
-		yield self.style('{}', self.var_name, n_col_max)
+		yield self.style('{}', trunc_string(self.var_name, n_col_max), n_col_max)
 
 class PrinterTitle(PrinterElement):
 	""" le titre d'une section """
@@ -58,7 +59,7 @@ class PrinterNumeric(PrinterElement):
 		len_equal = len(self.name) + len(val) + 1 + len(unit)
 		equal = PrinterNumeric.__get_equal(n_col_max, len_equal)
 		len_name = n_col_max - len(unit) - len(val) - len(equal)
-		res = '{}{}'.format(trunc_string(self.name, len_name), equal)
+		res = f'{trunc_string(self.name, len_name)}{equal}'
 
 		yield self.style(res + '{}', val + unit, n_col_max)
 
@@ -71,7 +72,8 @@ class PrinterRatio(PrinterElement):
 	""" un ration, la valeur doit etre une liste [val, val_max] """
 	def to_string(self, n_col_max):
 		name = self.name
-		val, val_max = self.get_value()
+		val = self.get_value()
+		val_max = self.param
 		if name:
 			name = trunc_string(name, n_col_max - 2 - len(str(val)) - len(str(val_max)))
 			yield self.style('{}:{}/{}'.format(name, '{}', val_max), val, n_col_max)
@@ -92,6 +94,132 @@ class PrinterBar(PrinterElement):
 			name = trunc_string(self.name, n_col_max//2)
 			string = name + ':' + string
 		return string
+
+class PrinterRow:
+	""" une ligne d'elements """
+	def __init__(self, elements, sep=''):
+		self.elements = elements
+		self.sep = sep
+
+	def to_string(self, n_col_max):
+		res = []
+		each_len = n_col_max/len(self.elements)
+		for i, elem in enumerate(self.elements):
+			res.append(next(elem.to_string(round((i+1)*each_len)-round(i*each_len))))
+		yield self.sep.join(res)
+
+class PrinterInput(PrinterElement):
+	""" un element avec lequel user peut interagir """
+	def __init__(self, callback, style, name=None):
+		self.callback = callback
+		self.name = name if name else ''
+		self.style = style
+		self.style.element = self
+		self.is_selected = False
+
+	def handle_char(self, char):
+		""" gere l'input user d'un character """
+		raise NotImplementedError()
+
+	def select(self):
+		""" selectionne l'input """
+		self.is_selected = True
+		self.style.kwargs['underline'] = True
+
+	def deselect(self):
+		""" deselectionne l'input """
+		self.is_selected = False
+		self.style.kwargs['underline'] = False
+
+class PrinterTextInput(PrinterInput):
+	""" une input de text """
+	def __init__(self, callback, style, name=None):
+		super().__init__(callback, style, name)
+		self.__content = []
+
+	def to_string(self, n_col_max):
+		name = trunc_string(self.name, n_col_max//2)
+		size = n_col_max-len(name)-3+int(not bool(name))
+		value = ''.join(self.__content[-size:] + [(size-len(self.__content[-size:]))*' '])
+		if name:
+			yield self.style('{}:[{}]'.format(name, '{}'), value, n_col_max)
+		else:
+			yield self.style('[{}]', value, n_col_max)
+
+	def handle_char(self, char):
+		if char == b'\r':
+			if self.callback:
+				self.callback(''.join(self.__content))
+				self.clear()
+		elif char == b'\x1b':
+			self.clear()
+		elif char == b'\x08':
+			if self.__content:
+				self.__content.pop()
+		else:
+			self.__content.append(char.decode('utf-8'))
+
+	def get_value(self):
+		return ''.join(self.__content)
+
+	def clear(self):
+		""" vide le contenu de l'input """
+		self.__content.clear()
+
+class PrinterOptionsInput(PrinterInput):
+	""" une input depuis une liste d'options """
+	def __init__(self, callback, options, style):
+		super().__init__(callback, style)
+		self.options = options
+
+	def to_string(self, n_col_max):
+		text = []
+		for key, opt in self.options.items():
+			text.append('{}: {}'.format(key, opt))
+		i = 0
+		while i < len(text):
+			last_index = i
+			current_length = -1
+			while i < len(text) and current_length + len(text[i]) < n_col_max:
+				current_length += len(text[i]) + 2
+				i += 1
+			yield self.style('{}', ', '.join(text[last_index:i]), n_col_max)
+
+	def handle_char(self, char):
+		ascii_char = char.decode('utf-8')
+		if ascii_char in self.options:
+			self.callback(ascii_char)
+
+class PrinterBoolInput(PrinterInput, PrinterBool):
+	""" une checkbox """
+	def __init__(self, callback, style, name=None):
+		super().__init__(callback, style, name)
+		self.value = False
+
+	def get_value(self):
+		return self.value
+
+	def handle_char(self, char):
+		if char == b'\r':
+			self.value = not self.value
+			if self.callback:
+				self.callback(self.value)
+
+class PrinterButtonInput(PrinterInput):
+	""" un bouton """
+	def __init__(self, callback, option, style, name=None):
+		super().__init__(callback, style, name)
+		self.option = option
+
+	def handle_char(self, char):
+		if char == b'\r':
+			self.callback(self.option)
+
+	def to_string(self, n_col_max):
+		if self.is_selected:
+			yield self.style('[ {} ]', self.option, n_col_max)
+		else:
+			yield self.style('  {}  ', self.option, n_col_max)
 
 class PrinterStr(PrinterElement):
 	""" une string """
@@ -119,7 +247,7 @@ class PrinterStr(PrinterElement):
 
 def trunc_string(string, size):
 	""" tronque la stirng pour quelle fasse size """
-	if len(string) < size:
+	if len(string) <= size:
 		return string
 	return '{}..'.format(string[:size - 2])
 
