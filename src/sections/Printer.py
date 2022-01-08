@@ -1,5 +1,5 @@
 
-from typing import Tuple, Dict, Optional, Iterator, List
+from typing import Tuple, Dict, Optional, Iterator, List, Any
 from itertools import repeat
 
 from .Section import AbstractSection
@@ -42,7 +42,7 @@ class Printer:
 		""" returns the height of a section"""
 		return self.screen_height // self.number_of_section_per_column - 1
 
-	def add_section(self, section:AbstractSection, coordinates:Optional[Coordinates]=None):
+	def add_section(self, section:AbstractSection, data:Any, coordinates:Optional[Coordinates]=None):
 		""" ajoute une section au coordonnees si donnees, sinon a une case libre """
 		if coordinates:
 			if self.coordinates and coordinates in self.coordinates:
@@ -50,7 +50,7 @@ class Printer:
 		else:
 			coordinates = self.coordinates.get_available()
 
-		self.sections[coordinates] = section
+		self.sections[coordinates] = (section, data)
 
 	# def __inputs_iter(self):
 	# 	return cycle(chain(*[section.inputs_iter() for section in self.sections.values()]))
@@ -91,8 +91,8 @@ class Printer:
 
 			if (section_column_index, section_row_index) in self.sections:
 
-				section = self.sections[(section_column_index, section_row_index)]
-				line_iterators.append(section.lines(self.section_width))
+				section, data = self.sections[(section_column_index, section_row_index)]
+				line_iterators.append(section.lines(data, self.section_width))
 			else:
 				line_iterators.append(repeat(' '*self.section_width))
 

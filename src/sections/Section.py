@@ -1,6 +1,6 @@
 
 from abc import ABC, abstractmethod
-from typing import Iterator, List
+from typing import Iterator, List, Any
 from itertools import repeat
 
 from .Element import AbstractElement #, Numeric, Bool, Title,Sep
@@ -9,7 +9,7 @@ class AbstractSection(ABC):
 	""" an abstract section """
 
 	@abstractmethod
-	def lines(self, span:int) -> Iterator[str]:
+	def lines(self, data:Any, span:int) -> Iterator[str]:
 		""" iterator over the lines of its elements """
 
 class Section(AbstractSection):
@@ -18,10 +18,10 @@ class Section(AbstractSection):
 	def __init__(self, *elements:AbstractElement):
 		self.elements:List[AbstractElement] = list(elements)
 
-	def lines(self, span:int) -> Iterator[str]:
+	def lines(self, data:Any, span:int) -> Iterator[str]:
 
 		for element in self.elements:
-			yield from element.lines(span)
+			yield from element.lines(data, span)
 
 		yield from repeat(span*' ')
 

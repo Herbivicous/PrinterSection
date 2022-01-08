@@ -37,4 +37,4 @@ class TestCoordinatesManager(TestCase):
 		manager.get_available()
 		manager.get_available()
 
-		self.assertRaises(KeyError, manager.get_available)
+		self.assertRaises(IndexError, manager.get_available)

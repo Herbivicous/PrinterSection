@@ -8,9 +8,9 @@ class CoordinatesManager:
 	def __init__(self, cols:int, rows:int):
 		self.cols = cols
 		self.rows = rows
-		self.available_coordinates:Set[Coordinates] = {
+		self.available_coordinates:Set[Coordinates] = [
 			(x, y) for y in range(rows) for x in range(cols)
-		}
+		]
 
 	@property
 	def dimensions(self) -> (int, int):
@@ -18,7 +18,7 @@ class CoordinatesManager:
 
 	def get_available(self) -> Coordinates:
 		""" returns a tuple of avaible coordinates """
-		return self.available_coordinates.pop()
+		return self.available_coordinates.pop(0)
 
 	def remove(self, coordinates:Coordinates) -> None:
 		""" remove the coordinates from the available """

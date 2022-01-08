@@ -25,28 +25,31 @@ class Test:
 		self.ratio = (randint(0, 100), randint(1, 100))
 		self.progress = round(100*random(), 2)
 
-test = Test()
+test1 = Test()
+test2 = Test()
 
 printer = Printer.create(2, 2)
-printer.add_section(
-	Section(
-		Title('title'),
-		Text('hello', Style(color='red')),
-		Sep(),
-		Bool(lambda:test.is_closed, 'Closed'),
-		Ratio(lambda:test.ratio, 'done', Style(color='red', align='>')),
-		Numeric(lambda:test.value, 'value', 'kg', Style(color='green')),
-		Numeric(lambda:test.progress, '', '%', Style(color='green', align='^')),
-		Bar(lambda:test.progress/100, 'Progress', Style(color='red')),
-	)
+section = Section(
+	Title('title'),
+	Text('hello', Style(color='red')),
+	Sep(),
+	Bool(lambda x:x.is_closed, 'Closed'),
+	Ratio(lambda x:x.ratio, 'done', Style(color='red', align='>')),
+	Numeric(lambda x:x.value, 'value', 'kg', Style(color='green')),
+	Numeric(lambda x:x.progress, '', '%', Style(color='green', align='^')),
+	Bar(lambda x:x.progress/100, 'Progress', Style(color='red')),
 )
-printer.add_section(
-	Section(
-		Str(lambda:[34, 35, 75][randint(0, 2)]*"@", 'done'),
-	)
-)
+
+printer.add_section(section, test1)
+printer.add_section(section, test2)
+# printer.add_section(
+# 	Section(
+# 		Str(lambda:[34, 35, 75][randint(0, 2)]*"@", 'done'),
+# 	)
+# )
 
 for _ in range(5):
 	printer.print()
-	test.randomize()
+	test1.randomize()
+	test2.randomize()
 	sleep(0.5)

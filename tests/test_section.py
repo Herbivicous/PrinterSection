@@ -31,13 +31,13 @@ class TestSection(TestCase):
 	def test_empty_lines(self):
 		section = Section()
 
-		assert len(next(section.lines(5))) == 5
-		assert next(section.lines(5)) == '     '
+		assert len(next(section.lines(None, 5))) == 5
+		assert next(section.lines(None, 5)) == '     '
 
 	def test_lines(self):
 		element = StubElement()
 		section = Section(element)
 
-		lines = section.lines(5)
+		lines = section.lines(None, 5)
 		assert next(lines) == '@@@@@'
 		assert next(lines) == '     '

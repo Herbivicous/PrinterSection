@@ -15,17 +15,17 @@ class AbstractElement(ABC):
 
 	style:Optional[Style]=None
 
-	def lines(self, span:int) -> Iterator[str]:
+	def lines(self, data:Any, span:int) -> Iterator[str]:
 		""" generator over the styled lines of the element """
 
-		for line in self.iter_lines(span):
+		for line in self.iter_lines(data, span):
 			if self.style:
 				yield self.style.apply(line, span)
 			else:
 				yield line.value
 
 	@abstractmethod
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
 		""" generator over the lines of the element """
 
 @dataclass
@@ -35,7 +35,7 @@ class Sep(AbstractElement):
 	sep_char:str='─'
 	style:Style = Style()
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
 		yield ElementLine(span*self.sep_char)
 
 @dataclass
@@ -45,7 +45,7 @@ class Text(AbstractElement):
 	text:str=''
 	style:Style = Style()
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
 		yield ElementLine(trunc_string(self.text, span))
 
 @dataclass
@@ -55,7 +55,7 @@ class Title(AbstractElement):
 	text:str=''
 	style:Style = Style(align='^', strf='upper')
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
 		yield ElementLine(trunc_string(self.text, span))
 
 @dataclass
@@ -66,8 +66,8 @@ class Bool(AbstractElement):
 	name:str=''
 	style:Style = Style()
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
-		value = '■' if self.accessor() else ' '
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
+		value = '■' if self.accessor(data) else ' '
 		template = trunc_string(self.name, span - 3) + '[{}]'
 		yield ElementLine(value, template)
 
@@ -80,8 +80,8 @@ class Numeric(AbstractElement):
 	unit:str=''
 	style:Style = Style()
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
-		value = str(self.accessor())
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
+		value = str(self.accessor(data))
 		yield ElementLine(f'{value}{self.unit}', self.template(span, value))
 
 	def template(self, span:int, value:str) -> str:
@@ -103,10 +103,10 @@ class Bar(AbstractElement):
 	style:Style = Style()
 	filler:str=' '
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
 
 		total_length = (span - len(self.name) - 2 - int(bool(self.name)))
-		progress_chars = round(between(0, self.accessor(), 1)*total_length)
+		progress_chars = round(between(0, self.accessor(data), 1)*total_length)
 		progress_bar = f"{progress_chars*'■':{self.filler}<{total_length}}"
 
 		template = self.template(self.name, span)
@@ -126,8 +126,8 @@ class Ratio(AbstractElement):
 	name:str=''
 	style:Style = Style()
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
-		value, max_value = self.accessor()
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
+		value, max_value = self.accessor(data)
 		template = self.template(self.name, span, value, max_value)
 		yield ElementLine(f'{value}/{max_value}', template)
 
@@ -147,8 +147,8 @@ class Str(AbstractElement):
 	name:str=''
 	style:Style = Style()
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
-		string = self.accessor()
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
+		string = self.accessor(data)
 		string_len = len(string)
 
 		if string_len + len(self.name) + 1 > span:
@@ -174,7 +174,7 @@ class Row(AbstractElement):
 	sep:str='|'
 	style:Style = Style()
 
-	def iter_lines(self, span:int) -> Iterator[ElementLine]:
+	def iter_lines(self, data:Any, span:int) -> Iterator[ElementLine]:
 		each_len = span/len(self.elements)
 		yield next(map(
 			lambda lines: ElementLine(self.sep.join(lines)),
