@@ -42,6 +42,7 @@ section = Section(
 
 printer.add_section(section, test1)
 printer.add_section(section, test2)
+printer.add_section(Section.from_dataclass(Test), test1)
 # printer.add_section(
 # 	Section(
 # 		Str(lambda:[34, 35, 75][randint(0, 2)]*"@", 'done'),
