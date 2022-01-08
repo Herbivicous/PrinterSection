@@ -3,9 +3,9 @@ from typing import Tuple, Dict, Optional, Iterator, List
 from itertools import repeat
 
 from .Section import AbstractSection
-from .Coordinates import CoordinatesManager, Coordinates
+from .CoordinatesManager import CoordinatesManager, Coordinates
 
-from .utils.printer_utils import horizontal_border
+from .utils.printer_utils import horizontal_border, get_screen_size
 from .utils.string_utils import join_lines
 
 Dimensions = Tuple[int, int]
@@ -14,19 +14,23 @@ class Printer:
 	""" gestion d'un printer, compose de plusieurs sections """
 	def __init__(
 		self,
-		printer_dimensions:Dimensions,
 		screen_dimensions:Dimensions,
 		coordinates:CoordinatesManager,
 		stream
 	):
 		self.sections : Dict[Tuple[int, int], AbstractSection] = {}
 
-		self.number_of_section_per_row, self.number_of_section_per_column = printer_dimensions
+		self.number_of_section_per_row, self.number_of_section_per_column = coordinates.dimensions
 		self.screen_width,               self.screen_height                = screen_dimensions
 
 		self.coordinates = coordinates
 
 		self.stream = stream
+
+	@classmethod
+	def create(cls, cols:int, rows:int):
+		from sys import stdout
+		return cls(get_screen_size(), CoordinatesManager(cols, rows), stdout)
 
 	@property
 	def section_width(self) -> int:

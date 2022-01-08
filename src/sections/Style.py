@@ -8,7 +8,7 @@ from .utils.types import FormattingValues
 from .utils.printer_utils import color_formatting_values
 
 @dataclass
-class ElementStyle:
+class Style:
 
 	align:str='<'
 	color:str=''

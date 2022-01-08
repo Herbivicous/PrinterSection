@@ -12,6 +12,10 @@ class CoordinatesManager:
 			(x, y) for y in range(rows) for x in range(cols)
 		}
 
+	@property
+	def dimensions(self) -> (int, int):
+		return (self.cols, self.rows)
+
 	def get_available(self) -> Coordinates:
 		""" returns a tuple of avaible coordinates """
 		return self.available_coordinates.pop()

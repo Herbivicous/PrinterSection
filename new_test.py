@@ -1,5 +1,4 @@
 
-from sys import stdout
 from random import random, randint
 from time import sleep
 
@@ -9,10 +8,7 @@ from dataclasses import dataclass
 from src.sections.Printer import Printer
 from src.sections.Section import Section
 from src.sections.Element import Title, Text, Sep, Bool, Ratio, Numeric, Bar, Str 
-from src.sections.ElementStyle import ElementStyle as Style
-from src.sections.utils.printer_utils import get_screen_size
-
-from src.sections.Coordinates import CoordinatesManager
+from src.sections.Style import Style
 
 @dataclass
 class Test:
@@ -31,7 +27,7 @@ class Test:
 
 test = Test()
 
-printer = Printer((2, 2), get_screen_size(), CoordinatesManager(2, 2), stdout)
+printer = Printer.create(2, 2)
 printer.add_section(
 	Section(
 		Title('title'),

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Iterator, Callable, Any, List, Optional
 
-from .ElementStyle import ElementStyle
+from .Style import Style
 from .ElementLine import ElementLine
 
 from .utils.string_utils import trunc_string, get_equal_string, between
@@ -13,7 +13,7 @@ PropertyAccessor = Callable[[], Any]
 
 class AbstractElement(ABC):
 
-	style:Optional[ElementStyle]=None
+	style:Optional[Style]=None
 
 	def lines(self, span:int) -> Iterator[str]:
 		""" generator over the styled lines of the element """
@@ -33,7 +33,7 @@ class Sep(AbstractElement):
 	""" une ligne de separation """
 
 	sep_char:str='─'
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		yield ElementLine(span*self.sep_char)
@@ -43,7 +43,7 @@ class Text(AbstractElement):
 	""" une string constante """
 
 	text:str=''
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		yield ElementLine(trunc_string(self.text, span))
@@ -53,7 +53,7 @@ class Title(AbstractElement):
 	""" le titre d'une section """
 
 	text:str=''
-	style:ElementStyle = ElementStyle(align='^', strf='upper')
+	style:Style = Style(align='^', strf='upper')
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		yield ElementLine(trunc_string(self.text, span))
@@ -64,7 +64,7 @@ class Bool(AbstractElement):
 
 	accessor:PropertyAccessor
 	name:str=''
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		value = '■' if self.accessor() else ' '
@@ -78,7 +78,7 @@ class Numeric(AbstractElement):
 	accessor:PropertyAccessor
 	name:str=''
 	unit:str=''
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		value = str(self.accessor())
@@ -100,7 +100,7 @@ class Bar(AbstractElement):
 
 	accessor:PropertyAccessor
 	name:str=''
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 	filler:str=' '
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
@@ -124,7 +124,7 @@ class Ratio(AbstractElement):
 
 	accessor:PropertyAccessor
 	name:str=''
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		value, max_value = self.accessor()
@@ -145,7 +145,7 @@ class Str(AbstractElement):
 
 	accessor:PropertyAccessor
 	name:str=''
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		string = self.accessor()
@@ -172,7 +172,7 @@ class Row(AbstractElement):
 
 	elements:List[AbstractElement]
 	sep:str='|'
-	style:ElementStyle = ElementStyle()
+	style:Style = Style()
 
 	def iter_lines(self, span:int) -> Iterator[ElementLine]:
 		each_len = span/len(self.elements)

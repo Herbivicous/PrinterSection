@@ -1,7 +1,7 @@
 
 from unittest import TestCase
 
-from src.sections.Coordinates import CoordinatesManager
+from src.sections.CoordinatesManager import CoordinatesManager
 
 class TestCoordinatesManager(TestCase):
 
